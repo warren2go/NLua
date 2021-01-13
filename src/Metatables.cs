@@ -5,7 +5,7 @@ using System.Reflection;
 using System.Diagnostics;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
-
+using System.Text;
 using KeraLua;
 
 using NLua.Method;
@@ -32,6 +32,7 @@ namespace NLua
         public static readonly LuaNativeFunction ExecuteDelegateFunction  = RunFunctionDelegate;
         public static readonly LuaNativeFunction CallConstructorFunction  = CallConstructor;
         public static readonly LuaNativeFunction ToStringFunction = ToStringLua;
+        public static readonly LuaNativeFunction ConcatFunction = ConcatLua;
         public static readonly LuaNativeFunction CallDelegateFunction = CallDelegate;
 
         public static readonly LuaNativeFunction AddFunction = AddLua;
@@ -126,6 +127,130 @@ namespace NLua
                 translator.CollectObject(udata);
 
             return 0;
+        }
+
+        /*
+         * __concat metafunction of CLR objects.
+         */
+#if __IOS__ || __TVOS__ || __WATCHOS__
+        [MonoPInvokeCallback(typeof(LuaNativeFunction))]
+#endif
+        private static int ConcatLua(IntPtr state)
+        {
+            var luaState = LuaState.FromIntPtr(state);
+            var translator = ObjectTranslatorPool.Instance.Find(luaState);
+            return ConcatLua(luaState, translator);
+        }
+
+        private static int ConcatLua(LuaState luaState, ObjectTranslator translator)
+        {
+            var index1Type = luaState.Type(1);
+            var index2Type = luaState.Type(2);
+
+            if (index1Type == LuaType.UserData)
+            {
+                var obj1 = translator.GetRawNetObject(luaState, 1);
+
+                if (index2Type == LuaType.UserData)
+                {
+                    var obj2 = translator.GetRawNetObject(luaState, 2);
+
+                    translator.Push(luaState, obj1.ToString() + obj2);
+                }
+                else
+                {
+                    if (index2Type == LuaType.Table)
+                    {
+                        var obj2 = translator.GetTable(luaState, 2);
+
+                        translator.Push(luaState, obj1 + JoinWithInvoke(obj2, (key, value) => key + "=" + value));
+                    }
+                    else
+                    {
+                        object obj2 = translator.GetObject(luaState, 2);
+
+                        translator.Push(luaState, obj1.ToString() + obj2);
+                    }
+                }
+            }
+            else
+            {
+                if (index1Type == LuaType.Table)
+                {
+                    var obj1 = translator.GetTable(luaState, 1);
+
+                    if (index2Type == LuaType.UserData)
+                    {
+                        var obj2 = translator.GetRawNetObject(luaState, 2);
+
+                        translator.Push(luaState, JoinWithInvoke(obj1, (key, value) => key + "=" + value) + obj2);
+                    }
+                    else
+                    {
+                        if (index2Type == LuaType.Table)
+                        {
+                            var obj2 = translator.GetTable(luaState, 2);
+
+                            translator.Push(luaState, JoinWithInvoke(obj1, (key, value) => key + "=" + value) + JoinWithInvoke(obj2, (key, value) => key + "=" + value));
+                        }
+                        else
+                        {
+                            object obj2 = translator.GetObject(luaState, 2);
+
+                            translator.Push(luaState, JoinWithInvoke(obj1, (key, value) => key + "=" + value) + obj2);
+                        }
+                    }
+                }
+                else
+                {
+                    var obj1 = translator.GetObject(luaState, 1);
+
+                    if (index2Type == LuaType.UserData)
+                    {
+                        var obj2 = translator.GetRawNetObject(luaState, 2);
+
+                        translator.Push(luaState, obj1.ToString() + obj2);
+                    }
+                    else
+                    {
+                        if (index2Type == LuaType.Table)
+                        {
+                            var obj2 = translator.GetTable(luaState, 2);
+
+                            translator.Push(luaState, obj1 + JoinWithInvoke(obj2, (key, value) => key + "=" + value));
+                        }
+                        else
+                        {
+                            object obj2 = translator.GetObject(luaState, 2);
+
+                            translator.Push(luaState, obj1.ToString() + obj2);
+                        }
+                    }
+                }
+            }
+
+            return 1;
+        }
+
+        public static string JoinWithInvoke(LuaTable luaTable, Func<object, object, string> invoke, string delimiter = ", ", string pattern = "{0}")
+        {
+            var keys = luaTable.Keys;
+            var sb = new StringBuilder();
+            foreach (var key in keys)
+            {
+                var value = luaTable[key];
+                if (value != null)
+                {
+                    var append = invoke != null ? string.Format(pattern, invoke.Invoke(key, value)) : string.Format(pattern, key);
+                    if (!string.IsNullOrEmpty(append))
+                    {
+                        append += delimiter;
+                    }
+                    sb.Append(append);
+                }
+            }
+            var result = sb.ToString();
+            return result.Substring(0, result.Length > 0 ? result.Length - delimiter.Length : 0);
         }
 
         /*

@@ -707,6 +707,9 @@ namespace NLua
                     luaState.PushString("__tostring");
                     luaState.PushCFunction(MetaFunctions.ToStringFunction);
                     luaState.RawSet(-3);
+                    luaState.PushString("__concat");
+                    luaState.PushCFunction(MetaFunctions.ConcatFunction);
+                    luaState.RawSet(-3);
                     luaState.PushString("__newindex");
                     luaState.PushCFunction(MetaFunctions.NewIndexFunction);
                     luaState.RawSet(-3);
