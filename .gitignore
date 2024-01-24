@@ -4,6 +4,8 @@ src/obj
 tests/bin
 tests/obj
 build/net45/obj/
+build/net8/obj/
+build/net8/bin/
 build/netstandard1.0/bin/
 build/netstandard1.0/obj/
 build/netstandard1.3/bin/

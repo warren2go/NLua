@@ -9,6 +9,8 @@
 [assembly: AssemblyTitle ("NLua (Windows Universal)")]
 #elif __ANDROID__
 [assembly: AssemblyTitle ("NLua (Xamarin.Android)")]
+#elif NET8_0
+[assembly: AssemblyTitle("NLua (.NET 8)")]
 #elif NETCOREAPP
 [assembly: AssemblyTitle ("NLua (.NET Core)")]
 #elif NETSTANDARD

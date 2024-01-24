@@ -33,7 +33,7 @@ namespace NLua
             var assemblyName = new AssemblyName();
             assemblyName.Name = "NLua_generatedcode";
             // Create a new assembly with one module.
-#if NETCOREAPP
+#if NETCOREAPP && !NET8_0
             newAssembly = AssemblyBuilder.DefineDynamicAssembly(assemblyName, AssemblyBuilderAccess.Run);
             newModule = newAssembly.DefineDynamicModule("NLua_generatedcode");
 #elif !NETSTANDARD && !WINDOWS_UWP
