@@ -142,6 +142,16 @@ namespace NLua
             return ConcatLua(luaState, translator);
         }
 
+        private static PropertyInfo ResolvePropertyInfoWithAttribute(object @object)
+        {
+            return @object.GetType().GetProperties(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.Instance).FirstOrDefault(methodInfo => methodInfo.GetCustomAttributes(typeof(LuaConcatInvokeAttribute), true).Any());
+        }
+
+        private static MethodInfo ResolveMethodInfoWithAttribute(object @object)
+        {
+            return @object.GetType().GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.Instance).FirstOrDefault(methodInfo => methodInfo.GetCustomAttributes(typeof(LuaConcatInvokeAttribute), true).Any());
+        }
+
         private static int ConcatLua(LuaState luaState, ObjectTranslator translator)
         {
             var index1Type = luaState.Type(1);
@@ -150,12 +160,16 @@ namespace NLua
             if (index1Type == LuaType.UserData)
             {
                 var obj1 = translator.GetRawNetObject(luaState, 1);
+                var obj1PropertyInfo = ResolvePropertyInfoWithAttribute(obj1);
+                var obj1MethodInfo = ResolveMethodInfoWithAttribute(obj1);
 
                 if (index2Type == LuaType.UserData)
                 {
                     var obj2 = translator.GetRawNetObject(luaState, 2);
+                    var obj2PropertyInfo = ResolvePropertyInfoWithAttribute(obj2);
+                    var obj2Method = ResolveMethodInfoWithAttribute(obj2);
 
-                    translator.Push(luaState, obj1.ToString() + obj2);
+                    translator.Push(luaState, (obj1PropertyInfo?.GetValue(obj1) ?? obj1MethodInfo?.Invoke(obj1, new object[0]) ?? obj1).ToString() + (obj2PropertyInfo?.GetValue(obj2) ?? obj2Method?.Invoke(obj2, new object[0]) ?? obj2).ToString());
                 }
                 else
                 {
@@ -163,13 +177,13 @@ namespace NLua
                     {
                         var obj2 = translator.GetTable(luaState, 2);
 
-                        translator.Push(luaState, obj1 + JoinWithInvoke(obj2, (key, value) => key + "=" + value));
+                        translator.Push(luaState, (obj1PropertyInfo?.GetValue(obj1) ?? obj1MethodInfo?.Invoke(obj1, new object[0]) ?? obj1).ToString() + JoinWithInvoke(obj2, (key, value) => key + "=" + value));
                     }
                     else
                     {
                         object obj2 = translator.GetObject(luaState, 2);
 
-                        translator.Push(luaState, obj1.ToString() + obj2);
+                        translator.Push(luaState, (obj1PropertyInfo?.GetValue(obj1) ?? obj1MethodInfo?.Invoke(obj1, new object[0]) ?? obj1).ToString() + obj2);
                     }
                 }
             }
@@ -182,8 +196,10 @@ namespace NLua
                     if (index2Type == LuaType.UserData)
                     {
                         var obj2 = translator.GetRawNetObject(luaState, 2);
+                        var obj2PropertyInfo = ResolvePropertyInfoWithAttribute(obj2);
+                        var obj2Method = ResolveMethodInfoWithAttribute(obj2);
 
-                        translator.Push(luaState, JoinWithInvoke(obj1, (key, value) => key + "=" + value) + obj2);
+                        translator.Push(luaState, JoinWithInvoke(obj1, (key, value) => key + "=" + value) + (obj2PropertyInfo?.GetValue(obj2) ?? obj2Method?.Invoke(obj2, new object[0]) ?? obj2));
                     }
                     else
                     {
@@ -208,8 +224,10 @@ namespace NLua
                     if (index2Type == LuaType.UserData)
                     {
                         var obj2 = translator.GetRawNetObject(luaState, 2);
+                        var obj2PropertyInfo = ResolvePropertyInfoWithAttribute(obj2);
+                        var obj2Method = ResolveMethodInfoWithAttribute(obj2);
 
-                        translator.Push(luaState, obj1.ToString() + obj2);
+                        translator.Push(luaState, obj1.ToString() + (obj2PropertyInfo?.GetValue(obj2) ?? obj2Method?.Invoke(obj2, new object[0]) ?? obj2));
                     }
                     else
                     {
@@ -265,16 +283,33 @@ namespace NLua
             var translator = ObjectTranslatorPool.Instance.Find(luaState);
             return ToStringLua(luaState, translator);
         }
-
+        public delegate string lua_tostring();
         private static int ToStringLua(LuaState luaState, ObjectTranslator translator)
         {
             object obj = translator.GetRawNetObject(luaState, 1);
 
             if (obj != null)
-                translator.Push(luaState, obj + ": " + obj.GetHashCode());
+            {
+                var objType = obj.GetType();
+                if (objType.HasMethod("__toString"))
+                {
+                    var toStringDelegate = Delegate.CreateDelegate(typeof(lua_tostring), obj, "__toString");
+                    translator.Push(luaState, toStringDelegate.DynamicInvoke());
+                }
+                else if (objType.HasMethod("__tostring"))
+                {
+                    var toStringDelegate = Delegate.CreateDelegate(typeof(lua_tostring), obj, "__tostring");
+                    translator.Push(luaState, toStringDelegate.DynamicInvoke());
+                }
+                else
+                {
+                    translator.Push(luaState, obj.ToString());
+                }
+            }
             else
+            {
                 luaState.PushNil();
-
+            }
             return 1;
         }
 
@@ -1432,8 +1467,7 @@ namespace NLua
                 else
                     result = methodDelegate.Invoke(del.Target, validDelegate.args);
 
-                _translator.Push(luaState, result);
-                return 1;
+                return _translator.PushWithStackIncrement(luaState, result);
             }
 
             _translator.ThrowError(luaState, "Cannot invoke delegate (invalid arguments for  " + methodDelegate.Name + ")");
@@ -1693,6 +1727,13 @@ namespace NLua
                 if (IsTypeCorrect(luaState, currentLuaParam, currentNetParam, out extractValue))
                 {   // Type checking
                     var value = extractValue(luaState, currentLuaParam);
+
+                    var resolveParamAttribute = currentNetParam.GetCustomAttribute<LuaResolveParamAttribute>();
+                    if (resolveParamAttribute != null)
+                    {
+                        value = resolveParamAttribute.Resolve(method, value);
+                    }
+
                     paramList.Add(value);
                     int index = paramList.Count - 1;
                     var methodArg = new MethodArgs();

@@ -46,6 +46,15 @@ namespace NLua
             return lua.CallFunction(this, args);
         }
 
+        public object[] CallWithArray(object[] args)
+        {
+            Lua lua;
+            if (!TryGet(out lua))
+                return null;
+
+            return lua.CallFunction(this, args);
+        }
+
         /*
          * Pushes the function into the Lua stack
          */

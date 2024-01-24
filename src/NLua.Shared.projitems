@@ -24,8 +24,10 @@
     <Compile Include="$(MSBuildThisFileDirectory)GenerateEventAssembly\LuaClassType.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Lua.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)LuaBase.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)LuaResolveParamAttribute.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)LuaFunction.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)LuaGlobalAttribute.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)LuaConcatInvokeAttribute.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)LuaHideAttribute.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)LuaRegistrationHelper.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)LuaTable.cs" />

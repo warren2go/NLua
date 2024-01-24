@@ -1011,6 +1011,45 @@ namespace NLua
             return false;
         }
 
+        private static bool IsTuple<T1, T2>(object o)
+        {
+            if (o is Tuple<T1, T2> tuple1)
+            {
+                return true;
+            }
+            return false;
+        }
+
+        private static bool IsTuple<T1, T2, T3>(object o)
+        {
+            if (o is Tuple<T1, T2> tuple1)
+            {
+                return true;
+            }
+            if (o is Tuple<T1, T2, T3> tuple2)
+            {
+                return true;
+            }
+            return false;
+        }
+
+        private static bool IsTuple<T1, T2, T3, T4>(object o)
+        {
+            if (o is Tuple<T1, T2> tuple1)
+            {
+                return true;
+            }
+            if (o is Tuple<T1, T2, T3> tuple2)
+            {
+                return true;
+            }
+            if (o is Tuple<T1, T2, T3, T4> tuple3)
+            {
+                return true;
+            }
+            return false;
+        }
+
         /*
          * Pushes the object into the Lua stack according to its type.
          */
@@ -1049,20 +1088,104 @@ namespace NLua
             else if (IsILua(o))
                 ((ILuaGeneratedType)o).LuaInterfaceGetLuaTable().Push(luaState);
             else if (o is LuaTable table)
+                table.Push(luaState);   
+            else if (o is LuaNativeFunction nativeFunction)
+                PushFunction(luaState, nativeFunction);
+            else if (o is LuaFunction luaFunction)
+                luaFunction.Push(luaState);
+            else if (o is Tuple<long, long> tuple1)
+            {
+                luaState.PushInteger(tuple1.Item1);
+                luaState.PushInteger(tuple1.Item2);
+            }
+            else if (o is Tuple<long, long, long> tuple2)
+            {
+                luaState.PushInteger(tuple2.Item1);
+                luaState.PushInteger(tuple2.Item2);
+                luaState.PushInteger(tuple2.Item3);
+            }
+            else if (o is Tuple<long, long, long, long> tuple3)
+            {
+                luaState.PushInteger(tuple3.Item1);
+                luaState.PushInteger(tuple3.Item2);
+                luaState.PushInteger(tuple3.Item3);
+                luaState.PushInteger(tuple3.Item4);
+            }
+            else
+                PushObject(luaState, o, "luaNet_metatable");
+        }
+
+        internal int PushWithStackIncrement(LuaState luaState, object o)
+        {
+            if (o == null)
+                luaState.PushNil();
+            else if (o is sbyte sb)
+                luaState.PushInteger(sb);
+            else if (o is byte bt)
+                luaState.PushInteger(bt);
+            else if (o is short s)
+                luaState.PushInteger(s);
+            else if (o is ushort us)
+                luaState.PushInteger(us);
+            else if (o is int i)
+                luaState.PushInteger(i);
+            else if (o is uint ui)
+                luaState.PushInteger(ui);
+            else if (o is long l)
+                luaState.PushInteger(l);
+            else if (o is ulong ul)
+                luaState.PushInteger((long)ul);
+            else if (o is char ch)
+                luaState.PushInteger(ch);
+            else if (o is float fl)
+                luaState.PushNumber(fl);
+            else if (o is decimal dc)
+                luaState.PushNumber((double)dc);
+            else if (o is double db)
+                luaState.PushNumber(db);
+            else if (o is string str)
+                luaState.PushString(str);
+            else if (o is bool b)
+                luaState.PushBoolean(b);
+            else if (IsILua(o))
+                ((ILuaGeneratedType)o).LuaInterfaceGetLuaTable().Push(luaState);
+            else if (o is LuaTable table)
                 table.Push(luaState);
             else if (o is LuaNativeFunction nativeFunction)
                 PushFunction(luaState, nativeFunction);
             else if (o is LuaFunction luaFunction)
                 luaFunction.Push(luaState);
+            else if (o is Tuple<long, long> tuple1)
+            {
+                luaState.PushInteger(tuple1.Item1);
+                luaState.PushInteger(tuple1.Item2);
+                return 2;
+            }
+            else if (o is Tuple<long, long, long> tuple2)
+            {
+                luaState.PushInteger(tuple2.Item1);
+                luaState.PushInteger(tuple2.Item2);
+                luaState.PushInteger(tuple2.Item3);
+                return 3;
+            }
+            else if (o is Tuple<long, long, long, long> tuple3)
+            {
+                luaState.PushInteger(tuple3.Item1);
+                luaState.PushInteger(tuple3.Item2);
+                luaState.PushInteger(tuple3.Item3);
+                luaState.PushInteger(tuple3.Item4);
+                return 4;
+            }
             else
                 PushObject(luaState, o, "luaNet_metatable");
+            return 1;
         }
 
         /*
          * Checks if the method matches the arguments in the Lua stack, getting
          * the arguments if it does.
          */
-        internal bool MatchParameters(LuaState luaState, MethodBase method, MethodCache methodCache, int skipParam)
+            internal bool MatchParameters(LuaState luaState, MethodBase method, MethodCache methodCache, int skipParam)
         {
             return metaFunctions.MatchParameters(luaState, method, methodCache, skipParam);
         }
